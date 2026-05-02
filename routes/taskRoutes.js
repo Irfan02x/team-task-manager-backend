@@ -44,24 +44,29 @@ router.post("/", auth, role("admin"), async (req, res) => {
 
 
 // 📌 GET TASKS (SAFE VERSION)
+// 📌 GET TASKS
 router.get("/", auth, async (req, res) => {
   try {
-    // ✅ SAFETY CHECK (MOST IMPORTANT FIX)
-    if (!req.user || !req.user._id) {
-      return res.status(401).json({ message: "Unauthorized - user missing" });
+    let tasks;
+
+    // admin sees all tasks
+    if (req.user.role === "admin") {
+      tasks = await Task.find()
+        .populate("assignedTo", "name email role")
+        .populate("projectId", "title description");
+    } else {
+      // member sees only assigned tasks
+      tasks = await Task.find({
+        assignedTo: req.user._id
+      })
+        .populate("assignedTo", "name email role")
+        .populate("projectId", "title description");
     }
 
-    const tasks = await Task.find({
-      assignedTo: req.user._id
-    })
-      .populate("assignedTo", "name email")
-      .populate("projectId", "title description");
-
     res.json(tasks);
-
   } catch (err) {
-    console.log("GET TASK ERROR:", err.message);
-    res.status(500).json({ message: err.message });
+    console.log("GET TASK ERROR:", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
