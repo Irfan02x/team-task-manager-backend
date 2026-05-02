@@ -5,10 +5,11 @@ require("dotenv").config();
 const PORT =process.env.PORT || 5000;
 const app = express();
 
-app.use(cors({
-  origin: "https://team-task-manager-frontend-production-cd8e.up.railway.app",
+app.use(require("cors")({
+  origin: true,
   credentials: true
 }));
+
 app.use(express.json());
 
 // Routes
