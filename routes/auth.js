@@ -3,34 +3,38 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-
-// SIGNUP
+// ================= SIGNUP =================
 router.post("/signup", async (req, res) => {
   try {
     const { name, email, password, adminCode } = req.body;
 
-    // 1. Validation
+    // 🔹 validation
     if (!name || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // 2. Check existing user
+    // 🔹 check existing user
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "Email already exists" });
     }
 
-    // 3. Hash password
+    // 🔹 hash password
     const hashed = await bcrypt.hash(password, 10);
 
-    // 4. Decide role
+    // 🔹 default role
     let role = "member";
 
-    if (adminCode && adminCode === process.env.ADMIN_SECRET) {
+    // 🔥 SAFE ADMIN CHECK (NO CRASH)
+    if (
+      adminCode &&
+      process.env.ADMIN_SECRET &&
+      adminCode.trim() === process.env.ADMIN_SECRET.trim()
+    ) {
       role = "admin";
     }
 
-    // 5. Create user
+    // 🔹 create user
     const user = await User.create({
       name,
       email,
@@ -38,53 +42,55 @@ router.post("/signup", async (req, res) => {
       role
     });
 
-    // 6. Remove password
+    // 🔹 remove password
     const { password: _, ...userData } = user._doc;
 
     res.status(201).json(userData);
 
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    console.error("SIGNUP ERROR:", err); // 🔥 debug
+    res.status(500).json({ message: err.message });
   }
 });
 
 
-// LOGIN
+// ================= LOGIN =================
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // 1. Validation
+    // 🔹 validation
     if (!email || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // 2. Find user
+    // 🔹 find user
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ message: "User not found" });
     }
 
-    // 3. Compare password
+    // 🔹 compare password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // 4. Generate token
+    // 🔹 generate token
     const token = jwt.sign(
       { id: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
 
-    // 5. Remove password
+    // 🔹 remove password
     const { password: _, ...userData } = user._doc;
 
     res.json({ token, user: userData });
 
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    console.error("LOGIN ERROR:", err);
+    res.status(500).json({ message: err.message });
   }
 });
 
